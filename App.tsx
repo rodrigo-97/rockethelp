@@ -3,7 +3,7 @@ import { NativeBaseProvider, StatusBar } from 'native-base';
 import React from 'react';
 import { If } from './src/components/If';
 import { Loading } from './src/components/Loading';
-import { SignIn } from './src/screens/Signin';
+import { Routes } from './src/routes';
 import { THEME } from './src/styles/theme';
 
 export default function App() {
@@ -21,7 +21,7 @@ export default function App() {
       />
       <If
         condition={fontsLoaded}
-        thenComponent={<SignIn />}
+        thenComponent={<Routes />}
         elseComponent={<Loading />}
       />
     </NativeBaseProvider>
