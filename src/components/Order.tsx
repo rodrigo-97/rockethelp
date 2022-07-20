@@ -5,7 +5,9 @@ import { If } from './If';
 
 export type OrderProps = {
   id: string
+  userId: string
   patrimony: string
+  description: string
   when: string
   status: 'open' | 'closed'
 }
