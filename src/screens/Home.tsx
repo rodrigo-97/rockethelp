@@ -1,21 +1,22 @@
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import { useNavigation } from '@react-navigation/native';
-import { Center, FlatList, Heading, HStack, IconButton, Text, useTheme, VStack } from 'native-base';
+import { Center, FlatList, Heading, HStack, IconButton, Text, useTheme, useToast, VStack } from 'native-base';
 import { ChatTeardropText, SignOut } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
+import { Alert } from 'react-native';
 import Logo from '../assets/logo_secondary.svg';
 import { Button } from '../components/Button';
 import { Filter } from '../components/Filter';
-import { Order, OrderProps } from '../components/Order';
-import auth from '@react-native-firebase/auth'
-import { Alert } from 'react-native';
-import firestore from '@react-native-firebase/firestore'
-import { dateFormat } from '../utils/firestoreDateformat';
 import { If } from '../components/If';
 import { Loading } from '../components/Loading';
+import { Order, OrderProps } from '../components/Order';
+import { dateFormat } from '../utils/firestoreDateformat';
 
 export function Home() {
   const navigation = useNavigation()
   const { colors } = useTheme()
+  const toast = useToast()
   const [isLoading, setIsLoading] = useState(true)
   const [selectedStatus, setSelectedStatus] = useState<'open' | 'closed'>('open')
   const [orders, setOrders] = useState<OrderProps[]>([])
@@ -32,8 +33,12 @@ export function Home() {
     auth()
       .signOut()
       .catch(err => {
-        console.log(err)
-        return Alert.alert("Sair", "Erro ao deslogar da aplicação")
+        console.warn(err)
+        return toast.show({
+          description: 'Erro ao deslogar da aplicação',
+          backgroundColor: 'orange.700',
+          placement: 'top'
+        })
       })
   }
 
@@ -41,12 +46,10 @@ export function Home() {
     setIsLoading(true)
     const { uid } = auth().currentUser
 
-    setOrders([])
-
     firestore()
       .collection('orders')
-      .where('user_id', '==', uid)
       .where('status', '==', selectedStatus)
+      .where('user_id', '==', uid)
       .onSnapshot(({ docs }) => {
         const data = docs.map(doc => {
           const {
@@ -76,15 +79,8 @@ export function Home() {
 
   useEffect(() => {
     const controller = new AbortController()
-    setSelectedStatus('open')
     fetchOrders()
-    return () => controller.abort()
-  }, [])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchOrders()
-    return () => controller.abort()
+    return controller.abort()
   }, [selectedStatus])
 
   return (
@@ -162,7 +158,7 @@ export function Home() {
         />
 
         <Button
-          title='Nova solicitação'
+          title='Nova Solicitação'
           onPress={handleNewOrder}
         />
       </VStack>

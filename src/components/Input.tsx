@@ -1,12 +1,16 @@
 import { Input as NativeBaseInput, IInputProps } from 'native-base';
 
-export function Input({ ...rest }: IInputProps) {
+type Props = IInputProps & {
+  hasError?: boolean
+}
+
+export function Input({ hasError = false, ...rest }: Props) {
   return (
     <NativeBaseInput
       bg="gray.700"
       h={14}
       size="md"
-      borderWidth={0}
+      borderWidth={hasError ? 1 : 0}
       fontSize="md"
       fontFamily="body"
       placeholderTextColor='gray.300'

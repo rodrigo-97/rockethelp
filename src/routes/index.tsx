@@ -1,13 +1,11 @@
-import { NavigationContainer } from '@react-navigation/native'
-import { AppRoutes } from './app.routes'
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth'
+import { NavigationContainer } from '@react-navigation/native'
 import { useEffect, useState } from 'react'
 import { If } from '../components/If'
-import { SignIn } from '../screens/Signin'
 import { Loading } from '../components/Loading'
+import { AppRoutes, AuthRoutes } from './app.routes'
 
 export function Routes() {
-
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<FirebaseAuthTypes.User>()
 
@@ -18,7 +16,7 @@ export function Routes() {
       setIsLoading(false)
     })
 
-    return () => controller.abort()
+    return controller.abort()
   }, [])
 
   if (isLoading) {
@@ -30,7 +28,7 @@ export function Routes() {
       <If
         condition={!!user}
         thenComponent={<AppRoutes />}
-        elseComponent={<SignIn />}
+        elseComponent={<AuthRoutes />}
       />
     </NavigationContainer>
   )

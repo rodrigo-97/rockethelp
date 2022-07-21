@@ -1,65 +1,90 @@
-import { Box, Heading, Icon, Modal, useTheme, VStack } from 'native-base'
+import { yupResolver } from '@hookform/resolvers/yup'
+import auth from '@react-native-firebase/auth'
+import { useNavigation } from '@react-navigation/native'
+import { FormControl, Heading, Icon, Stack, useTheme, useToast, VStack, WarningOutlineIcon } from 'native-base'
 import { Envelope, Key } from 'phosphor-react-native'
 import { useState } from 'react'
+import { Controller, useForm } from 'react-hook-form'
 import { Alert } from 'react-native'
+import * as Yup from 'yup'
 import Logo from '../assets/logo_primary.svg'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
-import auth from '@react-native-firebase/auth'
 
 export function SignIn() {
   const { colors } = useTheme()
+  const toast = useToast()
   const [isLoading, setIsLoading] = useState(false)
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [createAccountEmail, setCreateAccountEmail] = useState('')
-  const [createAccountPassword, setCreateAccountPassword] = useState('')
+  const navigation = useNavigation()
 
-  const toggleModal = () => setIsModalOpen(p => !p)
+  const schema = Yup
+    .object()
+    .shape({
+      email: Yup
+        .string()
+        .required("E-mail obrigatório")
+        .typeError("O e-mail precisa ser uma String")
+        .email("E-mail inválido"),
+      password: Yup
+        .string()
+        .typeError("A senha precisa ser uma String")
+        .required("Senha obrigatória")
+        .min(8, "A senha precisa ter no mínimo 8 caracteres")
+    })
 
-  function handleSignin() {
-    if (!email || !password) {
-      return Alert.alert("Entrar", "Credenciais inválidas")
-    }
+  const {
+    control,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<{ email: string, password: string }>({
+    defaultValues: {
+      email: '',
+      password: ''
+    },
+    resolver: yupResolver(schema)
+  })
 
+  function handleSignin({ email, password }) {
     setIsLoading(true)
     auth()
       .signInWithEmailAndPassword(email, password)
       .catch((err) => {
         if (err.code === "auth/invalid-email") {
-          return Alert.alert("Entrar", 'E-mail inválido')
+          return toast.show({
+            description: 'E-mail inválido',
+            backgroundColor: 'red.700',
+            placement: 'top',
+          })
         }
 
         if (err.code === "auth/user-not-found") {
-          return Alert.alert("Entrar", 'E-mail ou senha inválida')
+          return toast.show({
+            description: 'E-mail ou senha inválid',
+            backgroundColor: 'red.700',
+            placement: 'top',
+          })
         }
 
         if (err.code === "auth/wrong-password") {
-          return Alert.alert("Entrar", 'E-mail ou senha inválida')
+          return toast.show({
+            description: 'E-mail ou senha inválida',
+            backgroundColor: 'red.700',
+            placement: 'top',
+          })
         }
 
         setIsLoading(false)
 
-        return Alert.alert("Entrar", "Erro ao entrar no App")
+        return toast.show({
+          description: 'Erro ao entrar no App',
+          backgroundColor: 'red.700',
+          placement: 'top',
+        })
       })
   }
 
   function handleCreateAccount() {
-    if (!createAccountEmail || !createAccountPassword) {
-      return Alert.alert("Criar Conta", "Credenciais inválidas")
-    }
-
-    setIsCreatingAccount(true)
-    toggleModal()
-    auth()
-      .createUserWithEmailAndPassword(createAccountEmail, createAccountPassword)
-      .catch((err) => {
-        console.log(err)
-        Alert.alert("Criar Conta", "Erro ao criar uma nova conta")
-        setIsCreatingAccount(false)
-      })
+    navigation.navigate('createAccount')
   }
 
   return (
@@ -69,71 +94,69 @@ export function SignIn() {
         Acesse sua Conta
       </Heading>
 
-      <Input
-        mb={2}
-        placeholder="E-mail"
-        InputLeftElement={<Icon as={<Envelope color={colors.gray[300]} />} ml={4} />}
-        onChangeText={setEmail}
+      <Controller
+        control={control}
+        name='email'
+        render={({ field: { onChange } }) => {
+          return (
+            <FormControl isInvalid={!!errors.email?.message} mb={4}>
+              <Input
+                onChangeText={onChange}
+                placeholder="E-mail"
+                hasError={!!errors.email}
+                InputLeftElement={<Icon as={<Envelope color={colors.gray[300]} />} ml={4} />}
+              />
+
+              <FormControl.ErrorMessage leftIcon={<WarningOutlineIcon size="xs" />}>
+                {errors.email?.message}
+              </FormControl.ErrorMessage>
+            </FormControl>
+          )
+        }}
       />
-      <Input
-        mb={4}
-        placeholder="Senha"
-        secureTextEntry
-        InputLeftElement={<Icon as={<Key color={colors.gray[300]} />} ml={4} />}
-        onChangeText={setPassword}
+
+      <Controller
+        control={control}
+        name='password'
+        render={({ field: { onChange } }) => {
+          return (
+            <FormControl isInvalid={!!errors.password?.message} mb={8}>
+              <Stack>
+                <Input
+                  placeholder="Senha"
+                  hasError={!!errors.password}
+                  secureTextEntry
+                  InputLeftElement={<Icon as={<Key color={colors.gray[300]} />} ml={4} />}
+                  onChangeText={onChange}
+                />
+                <FormControl.ErrorMessage leftIcon={<WarningOutlineIcon size="xs" />}>
+                  {errors.password?.message}
+                </FormControl.ErrorMessage>
+              </Stack>
+            </FormControl>
+          )
+        }}
       />
+
       <Button
         mb={2}
         title='Entrar'
         w="full"
-        onPress={handleSignin}
+        onPress={handleSubmit(handleSignin)}
         isLoading={isLoading}
         isLoadingText="Entrando"
       />
+
       <Button
+        mb={2}
+        bg='primary.700'
         title='Criar Conta'
         w="full"
-        onPress={toggleModal}
-        isLoading={isCreatingAccount}
-        isLoadingText='Criando Conta'
-        bg="primary.700"
+        onPress={handleCreateAccount}
         _pressed={{
           bg: 'primary.500'
         }}
       />
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={toggleModal}
-        size='xl'
-        bg='gray.700'
-        closeOnOverlayClick={false}
-      >
-        <Modal.Content>
-          <Modal.CloseButton />
-          <Modal.Body bg='gray.600' _text={{ color: 'white' }}>
-            <Heading color='white'>Criar nova conta</Heading>
-
-            <Box my={3}>
-              <Input
-                mb={2}
-                placeholder='Digite seu e-mail'
-                onChangeText={setCreateAccountEmail}
-              />
-              <Input
-                placeholder='Digite sua senha'
-                onChangeText={setCreateAccountPassword}
-                secureTextEntry
-              />
-            </Box>
-
-            <Button
-              title='Enviar'
-              onPress={handleCreateAccount}
-            />
-          </Modal.Body>
-        </Modal.Content>
-      </Modal>
     </VStack>
   )
 }

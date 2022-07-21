@@ -1,6 +1,6 @@
 import firestore from '@react-native-firebase/firestore';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Box, HStack, ScrollView, Text, useTheme, VStack } from 'native-base';
+import { Box, HStack, ScrollView, Text, useTheme, useToast, VStack } from 'native-base';
 import { CircleWavyCheck, DesktopTower, Hourglass, Clipboard } from 'phosphor-react-native';
 import { useEffect, useState } from 'react';
 import { Alert } from 'react-native';
@@ -29,18 +29,26 @@ export function Details() {
   const navigation = useNavigation()
   const [order, setOrder] = useState<OrderDetails>({} as OrderDetails)
   const [isLoading, setIsLoading] = useState(false)
+  const [isUpdating, setIsUpdating] = useState(false)
 
   const route = useRoute()
   const { orderId } = route.params as RouteParams
 
   const [solution, setSolution] = useState('')
 
+  const toast = useToast()
+
   function handleOrderClose() {
-    if (!solution) {
-      return Alert.alert("Encerrar solicitação", "Informe a solução para encerrar a solicitação")
+    if (!solution || solution.length < 10) {
+      const text = solution.length === 0 ? 'Preencha a solução para fechar a solicitação' : solution.length < 10 && 'A solução precisa ter mais de 10 caracteres'
+      return toast.show({
+        description: text,
+        backgroundColor: 'orange.700',
+        placement: 'top'
+      })
     }
 
-    setIsLoading(true)
+    setIsUpdating(true)
 
     firestore()
       .collection<OrderFirestoreDTO>('orders')
@@ -50,15 +58,22 @@ export function Details() {
         solution,
         closed_at: firestore.FieldValue.serverTimestamp()
       })
-      // .then(() => {
-      //   Alert.alert("Encerrar solicitação", "Solicitação encerrada")
-      //   setIsLoading(true)
-      //   navigation.goBack()
-      // })
+      .then(() => {
+        toast.show({
+          description: 'Solicitação encerrada',
+          backgroundColor: 'green.700',
+          placement: 'top'
+        })
+        navigation.goBack()
+      })
       .catch((err) => {
-        console.log(err)
-        Alert.alert('Encerrar solicitação', "Erro ao encerrar solicitação")
-        setIsLoading(false)
+        console.warn(err)
+        toast.show({
+          description: 'Erro ao encerrar solicitação',
+          backgroundColor: 'red.700',
+          placement: 'top'
+        })
+        setIsUpdating(false)
       })
   }
 
@@ -92,8 +107,13 @@ export function Details() {
         })
       })
       .catch(err => {
-        console.log(err)
-        Alert.alert("Descrição", "Erro ao buscar dados da solicitação")
+        console.warn(err)
+        toast.show({
+          id: 'close-reqeust',
+          description: 'Erro ao buscar solicitação',
+          backgroundColor: 'red.700',
+          placement: 'top'
+        })
       })
 
     return () => controller.abort()
@@ -106,7 +126,7 @@ export function Details() {
 
   return (
     <>
-      <Box p={3} bg='gray.600'>
+      <Box bg='gray.600'>
         <Header title="Solicitação" />
       </Box>
       <HStack bg='gray.500' justifyContent='center' p={4}>
@@ -128,56 +148,61 @@ export function Details() {
           />
         </Text>
       </HStack>
-      <VStack px={4} flex={1} bg="gray.700">
-        <ScrollView showsVerticalScrollIndicator={false}>
-          <CardDetails
-            title='equipamento'
-            description={`Patrimônio ${order.patrimony}`}
-            icon={DesktopTower}
-            footer={order.when}
-          />
+      <If
+        condition={!!order}
+        thenComponent={
+          <VStack px={4} flex={1} bg="gray.700">
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <CardDetails
+                title='equipamento'
+                description={`Patrimônio ${order.patrimony}`}
+                icon={DesktopTower}
+                footer={order.when}
+              />
 
-          <CardDetails
-            title='descrição do problema'
-            description={order.description}
-            icon={Clipboard}
-            footer={order.when}
-          />
+              <CardDetails
+                title='descrição do problema'
+                description={order.description}
+                icon={Clipboard}
+                footer={order.when}
+              />
 
-          <CardDetails
-            title='solução'
-            description={order.solution}
-            icon={CircleWavyCheck}
-            footer={order.closed && `Encerrado em ${order.closed}`}
-          >
+              <CardDetails
+                title='solução'
+                description={order.solution}
+                icon={CircleWavyCheck}
+                footer={order.closed && `Encerrado em ${order.closed}`}
+              >
+                <If
+                  condition={order.status === 'open'}
+                  thenComponent={
+                    <Input
+                      placeholder='Descrição da solução'
+                      onChangeText={setSolution}
+                      textAlignVertical='top'
+                      multiline
+                      h={100}
+                    />
+                  }
+                />
+              </CardDetails>
+            </ScrollView>
+
             <If
               condition={order.status === 'open'}
               thenComponent={
-                <Input
-                  placeholder='Descrição da solução'
-                  onChangeText={setSolution}
-                  textAlignVertical='top'
-                  multiline
-                  h={100}
+                <Button
+                  my={5}
+                  title='Encerrar Solicitação'
+                  isLoading={isUpdating}
+                  isLoadingText="Encerrando solicitação"
+                  onPress={handleOrderClose}
                 />
               }
             />
-          </CardDetails>
-        </ScrollView>
-
-        <If
-          condition={order.status === 'open'}
-          thenComponent={
-            <Button
-              my={5}
-              title='Encerrar Solicitação'
-              isLoading={isLoading}
-              isLoadingText="Encerrando solicitação"
-              onPress={handleOrderClose}
-            />
-          }
-        />
-      </VStack>
+          </VStack>
+        }
+      />
     </>
   );
 }
